@@ -1,0 +1,6 @@
+{
+    "proxy_mnemonic": "YOUR MNEMONIC GOES HERE",
+    "from_addresses": ["0xCOLLATOR1", "0xCOLLATOR2"],
+    "to_address": "0xDELEGATOR",
+    "endpoint": "wss://wss.api.moonbase.moonbeam.network"
+}
