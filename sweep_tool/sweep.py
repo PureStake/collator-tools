@@ -27,7 +27,7 @@ def run_sweep():
 
       # Retrieve free balance from chain, subtract balance we want to keep
       from_balance = substrate.query(module="System",storage_function="Account",params=[from_address])
-      to_sweep = from_balance.value["data"]["free"] - leave_free*decimals
+      to_sweep = from_balance.value["data"]["free"] - args.leave_free*decimals
 
       if to_sweep <= 0:
         logging.info("    No funds to sweep")
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     help  = 'config file path (default: .config.json)',
     default = ".config.json"
   )
-  parser.add_argument('-k', '--keep',
+  parser.add_argument('-l', '--leave_free',
     help  = 'how many tokens to keep in source accounts (default: 10)',
     default = 10
   )
@@ -110,7 +110,6 @@ if __name__ == "__main__":
   logging.basicConfig(stream=sys.stdout, level=logging.INFO)
   # Block number for when the next balance sweep will happen
   next_sweep = 0
-  leave_free = args.keep
 
   # Load config as a dict
   with open(args.config) as f:
