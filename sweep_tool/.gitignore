@@ -1,5 +1,6 @@
 # Tool config file, might include private keys
 .config
+.config.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
