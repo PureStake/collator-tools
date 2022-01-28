@@ -26,15 +26,18 @@ Set up a JSON config file with the following keys (see example .config.example):
 ## Usage
 
 ```bash
-python3 sweep.py --help
-usage: sweep.py [-h] [--config CONFIG] [--keep KEEP]
+$> python3 sweep.py --help
+
+usage: sweep.py [-h] [-c CONFIG] [-l LEAVE_FREE]
 
 Balance sweeping tool for Moonbeam
 
 optional arguments:
-  -h, --help       show this help message and exit
-  --config CONFIG  config file path (default: .config)
-  --keep KEEP      how many tokens to keep in source accounts (default: 10)
+  -h, --help            show this help message and exit
+  -c CONFIG, --config CONFIG
+                        config file path (default: .config.json)
+  -l LEAVE_FREE, --leave_free LEAVE_FREE
+                        how many tokens to keep in source accounts (default: 10)
 ```
 
 Once the script is running, it will check every 10 minutes for the current block. If it is past the block scheduled for the next sweep (at the half-point of the round), it will run the sweep and send any available funds from the source addresses to the destination address.
