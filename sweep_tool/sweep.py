@@ -15,7 +15,7 @@ def run_sweep():
   decimals = 10**(substrate.properties["tokenDecimals"])
 
   # Get current block
-  current_block = substrate.get_block()
+  current_block = substrate.get_block(ignore_decoding_errors=True)
   current_block_number = current_block["header"]["number"]
 
   if current_block_number >= next_sweep:
@@ -115,7 +115,7 @@ if __name__ == "__main__":
   if args.config:
     with open(args.config) as f:
       config = json.loads(f.read())
-  
+
   # Load config from ENV
   if "SWEEP_PROXY_MNEMONIC" in os.environ:
     config["proxy_mnemonic"] = os.environ["SWEEP_PROXY_MNEMONIC"]
