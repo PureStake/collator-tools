@@ -15,7 +15,7 @@ def run_sweep():
   decimals = 10**(substrate.properties["tokenDecimals"])
 
   # Get current block
-  current_block = substrate.get_block(ignore_decoding_errors=True)
+  current_block = substrate.get_block()
   current_block_number = current_block["header"]["number"]
 
   if current_block_number >= next_sweep:
