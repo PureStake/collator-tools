@@ -50,7 +50,7 @@ def run_sweep():
     # Schedule next sweep, in the middle of the next round
     current_round = substrate.query(module="ParachainStaking",storage_function="Round")
     round_length = current_round.value["length"]
-    next_sweep = current_round.value["first"] + int(1.5 * round_length)
+    next_sweep = current_round.value["first"] + int(0.5 * round_length) + int(config["round_frequency"] * round_length)
 
     logging.info(f"  Next sweep scheduled for block {next_sweep}")
 
@@ -125,6 +125,8 @@ if __name__ == "__main__":
     config["endpoint"] = os.environ["SWEEP_ENDPOINT"]
   if "SWEEP_FROM_ADDRESSES" in os.environ:
     config["from_addresses"] = os.environ["SWEEP_FROM_ADDRESSES"].split(",")
+  if "SWEEP_ROUND_FREQUENCY" in os.environ:
+    config["round_frequency"] = int(os.environ["SWEEP_ROUND_FREQUENCY"])
 
   # Schedule the sweep for every 10 minutes, but only actualy does anything if we're at (or past) the correct block
   schedule.every(10).minutes.do(run_sweep)
