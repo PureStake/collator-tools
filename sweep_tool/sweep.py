@@ -4,7 +4,7 @@ from substrateinterface import SubstrateInterface, Keypair
 from substrateinterface.exceptions import SubstrateRequestException
 from substrateinterface.base import KeypairType
 from substrateinterface.utils.hasher import blake2_256
-import json, schedule, time, argparse, logging, sys
+import json, schedule, time, argparse, logging, sys, os
 
 def run_sweep():
   global next_sweep
@@ -103,7 +103,7 @@ def run_sweep():
       # Schedule next sweep, in the middle of the next round
       current_round = substrate.query(module="ParachainStaking",storage_function="Round")
       round_length = current_round.value["length"]
-      next_sweep = current_round.value["first"] + int(1.5 * round_length)
+      next_sweep = current_round.value["first"] + int(0.5 * round_length) + int(config["round_frequency"] * round_length)
     else:
       # Schedule next sweep for when the announcement is ready
       if (announce_block):
@@ -247,7 +247,6 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Balance sweeping tool for Moonbeam')
   parser.add_argument('-c', '--config',
     help  = 'config file path (default: .config.json)',
-    default = ".config.json"
   )
   parser.add_argument('-l', '--leave_free',
     help  = 'how many tokens to keep in source accounts (default: 10)',
@@ -266,9 +265,23 @@ if __name__ == "__main__":
   # Block number for when the next balance sweep will happen
   next_sweep = 0
 
-  # Load config as a dict
-  with open(args.config) as f:
-    config = json.loads(f.read())
+  config = {}
+  # Load config from config file
+  if args.config:
+    with open(args.config) as f:
+      config = json.loads(f.read())
+
+  # Load config from ENV
+  if "SWEEP_PROXY_MNEMONIC" in os.environ:
+    config["proxy_mnemonic"] = os.environ["SWEEP_PROXY_MNEMONIC"]
+  if "SWEEP_TO_ADDRESS" in os.environ:
+    config["to_address"] = os.environ["SWEEP_TO_ADDRESS"]
+  if "SWEEP_ENDPOINT" in os.environ:
+    config["endpoint"] = os.environ["SWEEP_ENDPOINT"]
+  if "SWEEP_FROM_ADDRESSES" in os.environ:
+    config["from_addresses"] = os.environ["SWEEP_FROM_ADDRESSES"].split(",")
+  if "SWEEP_ROUND_FREQUENCY" in os.environ:
+    config["round_frequency"] = int(os.environ["SWEEP_ROUND_FREQUENCY"])
 
   # Load up the mnemonic to get the address of the proxy
   config["proxy_address"] = Keypair.create_from_mnemonic(config["proxy_mnemonic"], crypto_type=KeypairType.ECDSA).ss58_address
