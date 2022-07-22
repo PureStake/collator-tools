@@ -33,7 +33,7 @@ def run_sweep():
 
       # Retrieve free balance from chain, subtract balance we want to keep
       from_balance = substrate.query(module="System",storage_function="Account",params=[from_address]).value
-      to_sweep = from_balance["data"]["free"] + from_balance["data"]["reserved"] - args.leave_free*decimals
+      to_sweep = from_balance["data"]["free"] + from_balance["data"]["reserved"] - config["leave_free"]*decimals
 
       if to_sweep <= 0:
         logging.info("\t\tNo funds to sweep")
@@ -42,7 +42,7 @@ def run_sweep():
       logging.info(f"\t\tSweepable funds: {round(to_sweep/decimals, 2)} {unit_name}")
 
       # Check if there is a pending announce
-      if (args.proxy_delay > 0):
+      if (config["proxy_delay"] > 0):
         if (from_address in announcements):
           if (len(announcements[from_address]) > 1):
             logging.warning(f"\t\tWarning, there are multiple proxy announcements for {from_address}")
@@ -64,7 +64,7 @@ def run_sweep():
 
       # Retrieve free balance from chain, subtract balance we want to keep
       from_balance = substrate.query(module="System",storage_function="Account",params=[from_address]).value
-      to_sweep = from_balance["data"]["free"] + from_balance["data"]["reserved"] - args.leave_free*decimals
+      to_sweep = from_balance["data"]["free"] + from_balance["data"]["reserved"] - config["leave_free"]*decimals
 
       if to_sweep <= 0:
         logging.info("\t\tNo funds to sweep")
@@ -80,7 +80,7 @@ def run_sweep():
         }
       )
 
-      if args.proxy_delay == 0:
+      if config["proxy_delay"] == 0:
         # Send it via proxy
         proxy_call(transfer_extrinsic, from_address, substrate)
       
@@ -99,7 +99,7 @@ def run_sweep():
         # Execute the call
         announce_block = announce_call(announce_extrinsic, substrate)
 
-    if (args.proxy_delay == 0):
+    if (config["proxy_delay"] == 0):
       # Schedule next sweep, in the middle of the next round
       current_round = substrate.query(module="ParachainStaking",storage_function="Round")
       round_length = current_round.value["length"]
@@ -107,7 +107,7 @@ def run_sweep():
     else:
       # Schedule next sweep for when the announcement is ready
       if (announce_block):
-        next_sweep = announce_block + args.proxy_delay
+        next_sweep = announce_block + config["proxy_delay"]
       else:
         # if there was an error announcing or no funds to sweep, try again in 100 blocks (does this eat fees? what else to do?)
         next_sweep = current_block_number + 100
@@ -225,7 +225,7 @@ def get_announcements(substrate):
   ''' Returns a dict of announcement, with the real account as key and the expected balance transfers as values '''
   # How many tokens to keep
   decimals = 10**(substrate.properties["tokenDecimals"])
-  to_keep = args.leave_free * decimals
+  to_keep = config["leave_free"] * decimals
 
   announcements = {}
   announcement_query = substrate.query(module="Proxy",storage_function="Announcements",params=[config["proxy_address"]])
@@ -247,16 +247,6 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Balance sweeping tool for Moonbeam')
   parser.add_argument('-c', '--config',
     help  = 'config file path (default: .config.json)',
-  )
-  parser.add_argument('-l', '--leave_free',
-    help  = 'how many tokens to keep in source accounts (default: 10)',
-    type = int,
-    default = 10
-  )
-  parser.add_argument('-d', '--proxy_delay',
-    help  = 'how many blocks of delay is configured for the proxy (if larger than 0, the script uses announcements instead of straight transfers)',
-    type = int,
-    default = 0
   )
   args = parser.parse_args()
 
@@ -282,6 +272,10 @@ if __name__ == "__main__":
     config["from_addresses"] = os.environ["SWEEP_FROM_ADDRESSES"].split(",")
   if "SWEEP_ROUND_FREQUENCY" in os.environ:
     config["round_frequency"] = int(os.environ["SWEEP_ROUND_FREQUENCY"])
+  if "SWEEP_PROXY_DELAY" in os.environ:
+    config["leave_free"] = int(os.environ["SWEEP_PROXY_DELAY"])
+  if "SWEEP_LEAVE_FREE" in os.environ:
+    config["proxy_delay"] = int(os.environ["SWEEP_LEAVE_FREE"])
 
   # Load up the mnemonic to get the address of the proxy
   config["proxy_address"] = Keypair.create_from_mnemonic(config["proxy_mnemonic"], crypto_type=KeypairType.ECDSA).ss58_address
