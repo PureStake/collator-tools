@@ -50,13 +50,13 @@ def run_sweep():
           for amount in announcements[from_address]:
             logging.info(f"\t\tExecuting announcement for a sweep of {round(amount/decimals, 2)} {unit_name}")
             if (amount > to_sweep):
-              logging.error(f"\t\tWARNING! The announcement would put the account below desired balance. Stopping")
-              skip_account = True
+              logging.error(f"\t\tWARNING! The announcement would put the account below desired balance. Skipping")
+              #skip_account = True
               break
             else:
               execute_success = execute_announcement(from_address, amount, substrate)
               if (not execute_success):
-                skip_account = True
+                #skip_account = True
                 break
           if skip_account:
             logging.error(f"\t\tFailed to execute an announcement, skipping account {from_address}")
