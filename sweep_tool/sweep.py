@@ -273,9 +273,9 @@ if __name__ == "__main__":
   if "SWEEP_ROUND_FREQUENCY" in os.environ:
     config["round_frequency"] = int(os.environ["SWEEP_ROUND_FREQUENCY"])
   if "SWEEP_PROXY_DELAY" in os.environ:
-    config["leave_free"] = int(os.environ["SWEEP_PROXY_DELAY"])
+    config["proxy_delay"] = int(os.environ["SWEEP_PROXY_DELAY"])
   if "SWEEP_LEAVE_FREE" in os.environ:
-    config["proxy_delay"] = int(os.environ["SWEEP_LEAVE_FREE"])
+    config["leave_free"] = int(os.environ["SWEEP_LEAVE_FREE"])
 
   # Load up the mnemonic to get the address of the proxy
   config["proxy_address"] = Keypair.create_from_mnemonic(config["proxy_mnemonic"], crypto_type=KeypairType.ECDSA).ss58_address
