@@ -97,6 +97,7 @@ def run_sweep():
           }
         )
         # Execute the call
+        logging.info(f"\t\tScheduling announcement for sweep of {round(to_sweep/decimals, 2)} {unit_name} ({to_sweep})")
         announce_block = announce_call(announce_extrinsic, substrate)
 
     if (config["proxy_delay"] == 0):
