@@ -55,7 +55,8 @@ def run_sweep():
             if (amount > to_sweep):
               logging.error(f"\t\tWARNING! The announcement would put the account below desired balance. Skipping")
               #skip_account = True
-              break
+              #break
+              continue
             elif (when_executable > current_block_number):
               logging.warning(f"\t\tThe announcement is not ready yet. Waiting until it is ready (block {when_executable})")
               skip_account = True
@@ -66,7 +67,8 @@ def run_sweep():
               execute_success = execute_announcement(from_address, amount, substrate)
               if (not execute_success):
                 #skip_account = True
-                break
+                #break
+                continue
               else:
                 to_sweep -= amount
           if skip_account:
