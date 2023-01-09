@@ -155,11 +155,13 @@ def proxy_call(call, address_behind_proxy, substrate):
     receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
 
     for event in receipt.triggered_events:
-      # Search for Err in the extrinsic which executed the proxy
-      if event.value["event_id"] == "ProxyExecuted":
-        if "Err" in event.value["attributes"]:
-          logging.error("\t\tProxy call failed")
-          return False
+        if event.value["event_id"] == "ExtrinsicFailed":
+            logging.error(f"\t\tProxy call failed. Extrinsic: {receipt.extrinsic_hash}")
+            return False
+        if event.value["event_id"] == "ProxyExecuted":
+            if "Err" in event.value["attributes"]["result"]:
+                logging.error(f"\t\tProxy call failed. Extrinsic: {receipt.extrinsic_hash}")
+                return False
     else:
       logging.info("\t\tExtrinsic '{}' sent and included in block '{}'".format(receipt.extrinsic_hash, receipt.block_hash))
       return True
