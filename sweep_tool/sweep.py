@@ -7,6 +7,7 @@ from substrateinterface.utils.hasher import blake2_256
 import json, schedule, time, argparse, logging, sys, os
 import boto3
 from botocore.exceptions import ClientError
+import gc
 
 def aws_get_secret(secret_name, region_name):
 
@@ -152,6 +153,8 @@ def run_sweep():
           next_sweep = current_block_number + 100
 
     logging.info(f"\tNext sweep scheduled for block {next_sweep}")
+  del current_block
+  gc.collect()
 
 
 def proxy_call(call, address_behind_proxy, substrate):
@@ -340,7 +343,7 @@ if __name__ == "__main__":
   config["proxy_address"] = Keypair.create_from_mnemonic(config["proxy_mnemonic"], crypto_type=KeypairType.ECDSA).ss58_address
 
   # Schedule the sweep for every 10 minutes, but only actualy does anything if we're at (or past) the correct block
-  schedule.every(10).minutes.do(run_sweep)
+  schedule.every(20).minutes.do(run_sweep)
   # Run an initial sweep as well
   run_sweep()
 
