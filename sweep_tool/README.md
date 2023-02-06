@@ -13,10 +13,9 @@ Make sure you install the required packages on whichever user will run the scrip
 pip3 install -r requirements.txt
 ```
 
-## Config
+## Config - Standalone
 
-Set up a JSON config file with the following keys (see example .config.example):
-
+Set up a JSON config file with the following keys (see example .config.example.json):
 
 * `proxy_mnemonic`. Mnemonic of the balance proxy (for the `from_addresses`)
 * `from_addresses`. List of addresses from which the funds will be swept
@@ -25,6 +24,12 @@ Set up a JSON config file with the following keys (see example .config.example):
 
 
 ## Config - AWS Secrets Manager
+
+Set up a JSON config file with the following keys (see example .config.example.aws.json):
+
+* `aws_secret_name`, secret name in aws secrets namager
+* `aws_region_name`, region used 
+
 ### in the AWS Console
 create secrets in secrets manager `my_secret_name`
 * `proxy_mnemonic`. Mnemonic of the balance proxy (for the `from_addresses`)
