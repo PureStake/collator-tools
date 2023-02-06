@@ -26,6 +26,7 @@ def run_sweep():
     # Get any pending announcements
     announcements = get_announcements(substrate)
     announce_block = None
+    set_new_next = False
 
     for from_address in config["from_addresses"]:
       from_address = from_address.lower()
@@ -47,17 +48,29 @@ def run_sweep():
           if (len(announcements[from_address]) > 1):
             logging.warning(f"\t\tWarning, there are multiple proxy announcements for {from_address}")
           skip_account = False
-          for amount in announcements[from_address]:
+          for announcement in announcements[from_address]:
+            amount = announcement[1]
+            when_executable = announcement[0]
             logging.info(f"\t\tExecuting announcement for a sweep of {round(amount/decimals, 2)} {unit_name}")
             if (amount > to_sweep):
               logging.error(f"\t\tWARNING! The announcement would put the account below desired balance. Skipping")
               #skip_account = True
+              #break
+              continue
+            elif (when_executable > current_block_number):
+              logging.warning(f"\t\tThe announcement is not ready yet. Waiting until it is ready (block {when_executable})")
+              skip_account = True
+              next_sweep = when_executable
+              set_new_next = True
               break
             else:
               execute_success = execute_announcement(from_address, amount, substrate)
               if (not execute_success):
                 #skip_account = True
-                break
+                #break
+                continue
+              else:
+                to_sweep -= amount
           if skip_account:
             logging.error(f"\t\tFailed to execute an announcement, skipping account {from_address}")
             continue
@@ -100,18 +113,19 @@ def run_sweep():
         logging.info(f"\t\tScheduling announcement for sweep of {round(to_sweep/decimals, 2)} {unit_name} ({to_sweep})")
         announce_block = announce_call(announce_extrinsic, substrate)
 
-    if (config["proxy_delay"] == 0):
-      # Schedule next sweep, in the middle of the next round
-      current_round = substrate.query(module="ParachainStaking",storage_function="Round")
-      round_length = current_round.value["length"]
-      next_sweep = current_round.value["first"] + int(0.5 * round_length) + int(config["round_frequency"] * round_length)
-    else:
-      # Schedule next sweep for when the announcement is ready
-      if (announce_block):
-        next_sweep = announce_block + config["proxy_delay"]
+    if not set_new_next:
+      if (config["proxy_delay"] == 0):
+        # Schedule next sweep, in the middle of the next round
+        current_round = substrate.query(module="ParachainStaking",storage_function="Round")
+        round_length = current_round.value["length"]
+        next_sweep = current_round.value["first"] + int(0.5 * round_length) + int(config["round_frequency"] * round_length)
       else:
-        # if there was an error announcing or no funds to sweep, try again in 100 blocks (does this eat fees? what else to do?)
-        next_sweep = current_block_number + 100
+        # Schedule next sweep for when the announcement is ready
+        if (announce_block):
+          next_sweep = announce_block + config["proxy_delay"]
+        else:
+          # if there was an error announcing or no funds to sweep, try again in 100 blocks (does this eat fees? what else to do?)
+          next_sweep = current_block_number + 100
 
     logging.info(f"\tNext sweep scheduled for block {next_sweep}")
 
@@ -141,11 +155,13 @@ def proxy_call(call, address_behind_proxy, substrate):
     receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
 
     for event in receipt.triggered_events:
-      # Search for Err in the extrinsic which executed the proxy
-      if event.value["event_id"] == "ProxyExecuted":
-        if "Err" in event.value["attributes"]:
-          logging.error("\t\tProxy call failed")
-          return False
+        if event.value["event_id"] == "ExtrinsicFailed":
+            logging.error(f"\t\tProxy call failed. Extrinsic: {receipt.extrinsic_hash}")
+            return False
+        if event.value["event_id"] == "ProxyExecuted":
+            if "Err" in event.value["attributes"]["result"]:
+                logging.error(f"\t\tProxy call failed. Extrinsic: {receipt.extrinsic_hash}")
+                return False
     else:
       logging.info("\t\tExtrinsic '{}' sent and included in block '{}'".format(receipt.extrinsic_hash, receipt.block_hash))
       return True
@@ -223,7 +239,7 @@ def execute_announcement(real, amount, substrate):
 
 
 def get_announcements(substrate):
-  ''' Returns a dict of announcement, with the real account as key and the expected balance transfers as values '''
+  ''' Returns a dict of announcement, with the real account as key and (when executable, expected balance transfer) as values '''
   # How many tokens to keep
   decimals = 10**(substrate.properties["tokenDecimals"])
   to_keep = config["leave_free"] * decimals
@@ -238,9 +254,9 @@ def get_announcements(substrate):
       balance = balance_query["data"]["free"] + balance_query["data"]["reserved"]
       if announcement["real"] not in announcements:
          # this is the expected value of the balance transfer call
-          announcements[announcement["real"]] = [balance-to_keep]
+          announcements[announcement["real"]] = [(height+config["proxy_delay"], balance-to_keep)]
       else:
-          announcements[announcement["real"]] += [balance-to_keep]
+          announcements[announcement["real"]] += [(height+config["proxy_delay"], balance-to_keep)]
   return announcements
 
 
