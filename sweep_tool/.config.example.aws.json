@@ -1,0 +1,4 @@
+{
+    "aws_secret_name": "sweeper-aws_secret_name",
+    "aws_region_name": "aws_region_name"
+}

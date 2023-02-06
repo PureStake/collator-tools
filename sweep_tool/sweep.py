@@ -5,6 +5,30 @@ from substrateinterface.exceptions import SubstrateRequestException
 from substrateinterface.base import KeypairType
 from substrateinterface.utils.hasher import blake2_256
 import json, schedule, time, argparse, logging, sys, os
+import boto3
+from botocore.exceptions import ClientError
+
+def aws_get_secret(secret_name, region_name):
+
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        get_secret_value_response = client.get_secret_value(
+            SecretId=secret_name
+        )
+    except ClientError as e:
+        # For a list of exceptions thrown, see
+        # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+        raise e
+
+    # Decrypts secret using the associated KMS key.
+    secret = json.loads(get_secret_value_response['SecretString'])
+    return(secret)
 
 def run_sweep():
   global next_sweep
@@ -277,6 +301,24 @@ if __name__ == "__main__":
   if args.config:
     with open(args.config) as f:
       config = json.loads(f.read())
+
+ # Load config from aws secrets 
+  try:
+      secret = aws_get_secret(config['aws_secret_name'], config['aws_region_name'])
+  except KeyError:
+      secret = None
+  if secret:
+      config["proxy_mnemonic"] = secret['proxy_mnemonic']
+      config["to_address"] = secret['to_address']
+      config["from_addresses"] = secret['from_addresses'].split(",")
+      config["endpoint"] = secret['rpc_endpoint']
+      config["round_frequency"] = int(secret['round_frequency'])
+      config["leave_free"] = int(secret['target_balance'])
+      config["proxy_delay"] = int(secret['proxy_delay'])
+      logging.info("Using AWS Secrets Manager")
+  else:
+      logging.warning("Not using AWS Secrets Manager")
+
 
   # Load config from ENV
   if "SWEEP_PROXY_MNEMONIC" in os.environ:
