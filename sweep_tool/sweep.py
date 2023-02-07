@@ -7,7 +7,6 @@ from substrateinterface.utils.hasher import blake2_256
 import json, schedule, time, argparse, logging, sys, os
 import boto3
 from botocore.exceptions import ClientError
-from memory_profiler import profile
 
 def aws_get_secret(secret_name, region_name):
 
@@ -31,7 +30,6 @@ def aws_get_secret(secret_name, region_name):
     secret = json.loads(get_secret_value_response['SecretString'])
     return(secret)
 
-@profile
 def run_sweep():
   global next_sweep
   # Get current block
