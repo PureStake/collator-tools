@@ -7,7 +7,7 @@ from substrateinterface.utils.hasher import blake2_256
 import json, schedule, time, argparse, logging, sys, os
 import boto3
 from botocore.exceptions import ClientError
-import gc
+from memory_profiler import profile
 
 def aws_get_secret(secret_name, region_name):
 
@@ -31,18 +31,11 @@ def aws_get_secret(secret_name, region_name):
     secret = json.loads(get_secret_value_response['SecretString'])
     return(secret)
 
+@profile
 def run_sweep():
   global next_sweep
-  # Start substrate inteface
-  substrate = SubstrateInterface(url = config["endpoint"])
-
-  # Get unit and decimals from system_properties
-  unit_name = substrate.properties["tokenSymbol"]
-  decimals = 10**(substrate.properties["tokenDecimals"])
-
   # Get current block
-  current_block = substrate.get_block()
-  current_block_number = current_block["header"]["number"]
+  current_block_number = substrate.get_block()["header"]["number"]
 
   if current_block_number >= next_sweep:
     # Time to sweep tokens
@@ -153,8 +146,6 @@ def run_sweep():
           next_sweep = current_block_number + 100
 
     logging.info(f"\tNext sweep scheduled for block {next_sweep}")
-  del current_block
-  gc.collect()
 
 
 def proxy_call(call, address_behind_proxy, substrate):
@@ -289,9 +280,8 @@ def get_announcements(substrate):
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Balance sweeping tool for Moonbeam')
-  parser.add_argument('-c', '--config',
-    help  = 'config file path (default: .config.json)',
-  )
+  parser.add_argument('-c', '--config', help ='config file path (default: .config.json)')
+  parser.add_argument('-o', '--run-once', dest='run_once', action='store_true', help ='run the sweep only once and terminate')
   args = parser.parse_args()
 
   # Set logging level
@@ -342,12 +332,23 @@ if __name__ == "__main__":
   # Load up the mnemonic to get the address of the proxy
   config["proxy_address"] = Keypair.create_from_mnemonic(config["proxy_mnemonic"], crypto_type=KeypairType.ECDSA).ss58_address
 
-  # Schedule the sweep for every 10 minutes, but only actualy does anything if we're at (or past) the correct block
-  schedule.every(20).minutes.do(run_sweep)
-  # Run an initial sweep as well
+  # Start substrate inteface
+  substrate = SubstrateInterface(url = config["endpoint"])
+
+  # Get unit and decimals from system_properties
+  unit_name = substrate.properties["tokenSymbol"]
+  decimals = 10**(substrate.properties["tokenDecimals"])
+
+  # Run an initial sweep
   run_sweep()
 
-  while True:
-    # Try to run any pending sweep every 5 minutes
-    schedule.run_pending()
-    time.sleep(5 * 60)
+  # Schedule the sweep for every 10 minutes, but only actualy does anything if we're at (or past) the correct block
+  if not args.run_once:
+    schedule.every(1).minutes.do(run_sweep)
+
+    while True:
+      # Try to run any pending sweep every 5 minutes
+      schedule.run_pending()
+      time.sleep(1 * 60)
+  else:
+    print("run-once flag is active, only doing one sweep")
