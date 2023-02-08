@@ -342,11 +342,11 @@ if __name__ == "__main__":
 
   # Schedule the sweep for every 10 minutes, but only actualy does anything if we're at (or past) the correct block
   if not args.run_once:
-    schedule.every(1).minutes.do(run_sweep)
+    schedule.every(10).minutes.do(run_sweep)
 
     while True:
       # Try to run any pending sweep every 5 minutes
       schedule.run_pending()
-      time.sleep(1 * 60)
+      time.sleep(5 * 60)
   else:
     print("run-once flag is active, only doing one sweep")
