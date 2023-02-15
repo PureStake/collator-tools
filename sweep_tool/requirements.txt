@@ -1,2 +1,3 @@
-substrate-interface>=1.2.9
+substrate-interface>=1.4.2
 schedule>=1.1.0
+boto3>=1.15.4

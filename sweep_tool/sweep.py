@@ -5,19 +5,35 @@ from substrateinterface.exceptions import SubstrateRequestException
 from substrateinterface.base import KeypairType
 from substrateinterface.utils.hasher import blake2_256
 import json, schedule, time, argparse, logging, sys, os
+import boto3
+from botocore.exceptions import ClientError
+
+def aws_get_secret(secret_name, region_name):
+
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        get_secret_value_response = client.get_secret_value(
+            SecretId=secret_name
+        )
+    except ClientError as e:
+        # For a list of exceptions thrown, see
+        # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+        raise e
+
+    # Decrypts secret using the associated KMS key.
+    secret = json.loads(get_secret_value_response['SecretString'])
+    return(secret)
 
 def run_sweep():
   global next_sweep
-  # Start substrate inteface
-  substrate = SubstrateInterface(url = config["endpoint"])
-
-  # Get unit and decimals from system_properties
-  unit_name = substrate.properties["tokenSymbol"]
-  decimals = 10**(substrate.properties["tokenDecimals"])
-
   # Get current block
-  current_block = substrate.get_block()
-  current_block_number = current_block["header"]["number"]
+  current_block_number = substrate.get_block()["header"]["number"]
 
   if current_block_number >= next_sweep:
     # Time to sweep tokens
@@ -262,9 +278,8 @@ def get_announcements(substrate):
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Balance sweeping tool for Moonbeam')
-  parser.add_argument('-c', '--config',
-    help  = 'config file path (default: .config.json)',
-  )
+  parser.add_argument('-c', '--config', help ='config file path (default: .config.json)')
+  parser.add_argument('-o', '--run-once', dest='run_once', action='store_true', help ='run the sweep only once and terminate')
   args = parser.parse_args()
 
   # Set logging level
@@ -277,6 +292,24 @@ if __name__ == "__main__":
   if args.config:
     with open(args.config) as f:
       config = json.loads(f.read())
+
+ # Load config from aws secrets 
+  try:
+      secret = aws_get_secret(config['aws_secret_name'], config['aws_region_name'])
+  except KeyError:
+      secret = None
+  if secret:
+      config["proxy_mnemonic"] = secret['proxy_mnemonic']
+      config["to_address"] = secret['to_address']
+      config["from_addresses"] = secret['from_addresses'].split(",")
+      config["endpoint"] = secret['rpc_endpoint']
+      config["round_frequency"] = int(secret['round_frequency'])
+      config["leave_free"] = int(secret['target_balance'])
+      config["proxy_delay"] = int(secret['proxy_delay'])
+      logging.info("Using AWS Secrets Manager")
+  else:
+      logging.warning("Not using AWS Secrets Manager")
+
 
   # Load config from ENV
   if "SWEEP_PROXY_MNEMONIC" in os.environ:
@@ -297,12 +330,23 @@ if __name__ == "__main__":
   # Load up the mnemonic to get the address of the proxy
   config["proxy_address"] = Keypair.create_from_mnemonic(config["proxy_mnemonic"], crypto_type=KeypairType.ECDSA).ss58_address
 
-  # Schedule the sweep for every 10 minutes, but only actualy does anything if we're at (or past) the correct block
-  schedule.every(10).minutes.do(run_sweep)
-  # Run an initial sweep as well
+  # Start substrate inteface
+  substrate = SubstrateInterface(url = config["endpoint"])
+
+  # Get unit and decimals from system_properties
+  unit_name = substrate.properties["tokenSymbol"]
+  decimals = 10**(substrate.properties["tokenDecimals"])
+
+  # Run an initial sweep
   run_sweep()
 
-  while True:
-    # Try to run any pending sweep every 5 minutes
-    schedule.run_pending()
-    time.sleep(5 * 60)
+  # Schedule the sweep for every 10 minutes, but only actualy does anything if we're at (or past) the correct block
+  if not args.run_once:
+    schedule.every(10).minutes.do(run_sweep)
+
+    while True:
+      # Try to run any pending sweep every 5 minutes
+      schedule.run_pending()
+      time.sleep(5 * 60)
+  else:
+    print("run-once flag is active, only doing one sweep")

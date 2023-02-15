@@ -13,15 +13,70 @@ Make sure you install the required packages on whichever user will run the scrip
 pip3 install -r requirements.txt
 ```
 
-## Config
+## Config - Standalone
 
-Set up a JSON config file with the following keys (see example .config.example):
-
+Set up a JSON config file with the following keys (see example .config.example.json):
 
 * `proxy_mnemonic`. Mnemonic of the balance proxy (for the `from_addresses`)
 * `from_addresses`. List of addresses from which the funds will be swept
 * `to_address`. Address to which the funds will be sent to
 * `endpoint`. Websocket RPC endpoint to connect to the Moonbeam network
+
+
+## Config - AWS Secrets Manager
+
+Set up a JSON config file with the following keys (see example .config.example.aws.json):
+
+* `aws_secret_name`, secret name in aws secrets namager
+* `aws_region_name`, region used 
+
+### in the AWS Console
+create secrets in secrets manager `my_secret_name`
+* `proxy_mnemonic`. Mnemonic of the balance proxy (for the `from_addresses`)
+* `from_addresses`. List of addresses from which the funds will be swept
+* `to_address`. Address to which the funds will be sent to
+* `endpoint`. Websocket RPC endpoint to connect to the Moonbeam network
+
+create iam policy to read secrets for only the specific secrets it needs (by arn)  `my_secret_name-my_service_account-read` 
+* use the arn of the secret you created above
+
+create `my_service_account` iam user 
+* by access key only (no console access)
+* with that `my_secret_name-my_service_account-read` policy only
+
+### on the linux machine
+create linux user `my_service_account`, switch to that user 
+#### setup python virtual env (recommended) 
+inside the sweep_tool directory
+```
+python3 -m venv venv
+source ./venv/bin/activate
+python -m pip install -r requirements.txt
+
+```
+install awscli2 via pip
+https://pypi.org/project/awscliv2/
+
+```
+python -m pip install awscliv2
+awsv2 --install
+```
+add alias for aws 
+```
+vim ~/.bashrc
+# alias aws='awsv2'
+source ~/.bashrc 
+```
+
+run `aws configure` on the `my_service_account` user to apply aws creds 
+
+
+#### test access to secret
+from the linux machine, `my_service_account` account
+```
+aws secretsmanager get-secret-value --secret-id "MY_ARN_GOES_HERE"
+```
+
 
 ## Usage
 
