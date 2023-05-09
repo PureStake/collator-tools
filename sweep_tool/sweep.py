@@ -102,7 +102,7 @@ def run_sweep():
       # Compose the transfer call
       transfer_extrinsic = substrate.compose_call(
         call_module   = "Balances",
-        call_function = "transfer",
+        call_function = "transfer_keep_alive",
         call_params   = {
           "dest":  config["to_address"],
           "value": to_sweep,
@@ -214,7 +214,7 @@ def execute_announcement(real, amount, substrate):
   # Compose the transfer call
   transfer_extrinsic = substrate.compose_call(
     call_module   = "Balances",
-    call_function = "transfer",
+    call_function = "transfer_keep_alive",
     call_params   = {
       "dest":  config["to_address"],
       "value": amount,
