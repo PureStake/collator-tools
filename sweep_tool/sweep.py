@@ -3,7 +3,7 @@
 from substrateinterface import SubstrateInterface, Keypair
 from substrateinterface.exceptions import SubstrateRequestException
 from substrateinterface.base import KeypairType
-from substrateinterface.utils.hasher import blake2_256
+from hashlib import blake2b
 import json, schedule, time, argparse, logging, sys, os
 
 def run_sweep():
@@ -99,7 +99,7 @@ def run_sweep():
       
       else: # If we are using proxy with delay
         # Get the encoded hash of the call, to use with the proxy announcement
-        encoded_call_hash = "0x" + blake2_256(transfer_extrinsic.data.get_next_bytes(1000))
+        encoded_call_hash = "0x" + blake2b(transfer_extrinsic.data.get_next_bytes(1000), digest_size=32).hexdigest()
         # Compose the announcement call
         announce_extrinsic = substrate.compose_call(
           call_module   = "Proxy",
